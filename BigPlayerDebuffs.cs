@@ -90,6 +90,7 @@ namespace BigPlayerDebuffs
 
         private void FrameworkOnUpdate(Framework framework)
         {
+#if DEBUG
             try
             {
                 UpdateTargetStatus();
@@ -98,6 +99,9 @@ namespace BigPlayerDebuffs
             {
                 PluginLog.Error(ex.ToString());
             }
+#else
+            UpdateTargetStatus();
+#endif
         }
 
         private unsafe void UpdateTargetStatus()
@@ -105,30 +109,29 @@ namespace BigPlayerDebuffs
             var target = this.PluginInterface.ClientState.Targets.CurrentTarget;
             if (target != null)
             {
-                var targetInfoUnitBase = Common.GetUnitBase("_TargetInfo", 1);
-                if (targetInfoUnitBase == null) return;
-                if (targetInfoUnitBase->UldManager.NodeList == null || targetInfoUnitBase->UldManager.NodeListCount < 53) return;
-
-                var targetInfoStatusUnitBase = Common.GetUnitBase("_TargetInfoBuffDebuff", 1);
-                if (targetInfoStatusUnitBase == null) return;
-                if (targetInfoStatusUnitBase->UldManager.NodeList == null || targetInfoStatusUnitBase->UldManager.NodeListCount < 32) return;
-
-
-
                 var playerAuras = 0;
 
+                //PluginLog.Log($"StatusEffects.Length {target.StatusEffects.Length}"); // Always 30
+
                 var localPlayerId = this.PluginInterface.ClientState.LocalPlayer?.ActorId;
-                for (var i = 0; i < target.StatusEffects.Length; i++)
+                for (var i = 0; i < 30; i++)
                 {
                     if (target.StatusEffects[i].OwnerId == localPlayerId) playerAuras++;
                 }
 
                 //PluginLog.Log($"Player Auras {playerAuras}");
 
-                //var playerScale = 1.4f;
-                var playerScale = this.PluginConfig.bScale;
-
                 if (this.curDebuffs != playerAuras) {
+
+                    var playerScale = this.PluginConfig.bScale;
+
+                    var targetInfoUnitBase = Common.GetUnitBase("_TargetInfo", 1);
+                    if (targetInfoUnitBase == null) return;
+                    if (targetInfoUnitBase->UldManager.NodeList == null || targetInfoUnitBase->UldManager.NodeListCount < 53) return;
+
+                    var targetInfoStatusUnitBase = Common.GetUnitBase("_TargetInfoBuffDebuff", 1);
+                    if (targetInfoStatusUnitBase == null) return;
+                    if (targetInfoStatusUnitBase->UldManager.NodeList == null || targetInfoStatusUnitBase->UldManager.NodeListCount < 32) return;
 
                     this.curDebuffs = playerAuras;
 
@@ -184,35 +187,34 @@ namespace BigPlayerDebuffs
                         node->Flags_2 |= 0x1;
                     }
 
-                    
-                }
+                    ///////////////////
 
-                ///////////////////
+                    var newSecondRowOffset = (playerAuras > 0) ? (int)(playerScale*41) : 41;
 
-                var newSecondRowOffset = (playerAuras > 0) ? (int)(playerScale*41) : 41;
-
-                if (newSecondRowOffset != this.curSecondRowOffset)
-                {
-                    // Split Target Frame Second Row
-                    for (var i = 17; i >= 2; i--)
+                    if (newSecondRowOffset != this.curSecondRowOffset)
                     {
-                        targetInfoStatusUnitBase->UldManager.NodeList[i]->Y = newSecondRowOffset;
-                        targetInfoStatusUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
+                        // Split Target Frame Second Row
+                        for (var i = 17; i >= 2; i--)
+                        {
+                            targetInfoStatusUnitBase->UldManager.NodeList[i]->Y = newSecondRowOffset;
+                            targetInfoStatusUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
+                        }
+                        // Merged Target Frame Second Row
+                        for (var i = 18; i >= 3; i--)
+                        {
+                            targetInfoUnitBase->UldManager.NodeList[i]->Y = newSecondRowOffset;
+                            targetInfoUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
+                        }
+                        this.curSecondRowOffset = newSecondRowOffset;
                     }
-                    // Merged Target Frame Second Row
-                    for (var i = 18; i >= 3; i--)
-                    {
-                        targetInfoUnitBase->UldManager.NodeList[i]->Y = newSecondRowOffset;
-                        targetInfoUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
-                    }
-                    this.curSecondRowOffset = newSecondRowOffset;
-                }
 
-                // Setting 0x4 flag on the root element to recalculate the scales down the tree
-                targetInfoStatusUnitBase->UldManager.NodeList[1]->Flags_2 |= 0x4;
-                targetInfoStatusUnitBase->UldManager.NodeList[1]->Flags_2 |= 0x1;
-                targetInfoUnitBase->UldManager.NodeList[2]->Flags_2 |= 0x4;
-                targetInfoUnitBase->UldManager.NodeList[2]->Flags_2 |= 0x1;
+                    // Setting 0x4 flag on the root element to recalculate the scales down the tree
+                    targetInfoStatusUnitBase->UldManager.NodeList[1]->Flags_2 |= 0x4;
+                    targetInfoStatusUnitBase->UldManager.NodeList[1]->Flags_2 |= 0x1;
+                    targetInfoUnitBase->UldManager.NodeList[2]->Flags_2 |= 0x4;
+                    targetInfoUnitBase->UldManager.NodeList[2]->Flags_2 |= 0x1;
+
+                }
             }
 
         }
