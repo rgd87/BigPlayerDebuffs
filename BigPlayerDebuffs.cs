@@ -48,11 +48,11 @@ namespace BigPlayerDebuffs
         internal Common common;
 
         int curSecondRowOffset = 41;
-        int curPlayers = 0;
+        int curDebuffs = -1;
 
         public void InvalidateState()
         {
-            curPlayers = -1;
+            curDebuffs = -1;
             curSecondRowOffset = -1;
             UpdateTargetStatus();
         }
@@ -75,10 +75,6 @@ namespace BigPlayerDebuffs
 
             this.common = new Common(pluginInterface);
 
-
-#if DEBUG
-            drawConfigWindow = true;
-#endif
 
             PluginInterface.UiBuilder.OnOpenConfigUi += (sender, args) => {
                 this.drawConfigWindow = true;
@@ -132,9 +128,9 @@ namespace BigPlayerDebuffs
                 //var playerScale = 1.4f;
                 var playerScale = this.PluginConfig.bScale;
 
-                if (this.curPlayers != playerAuras) {
+                if (this.curDebuffs != playerAuras) {
 
-                    this.curPlayers = playerAuras;
+                    this.curDebuffs = playerAuras;
 
                     var adjustOffsetY = -(int)(41 * (playerScale-1.0f)/4.5);
 
@@ -161,7 +157,7 @@ namespace BigPlayerDebuffs
                             node->ScaleY = 1.0f;
                             node->Y = 0;
                         }
-                        node->Flags_2 |= 0x1;
+                        node->Flags_2 |= 0x1; // 0x1 flag i'm guessing recalculates only for this node
                     }
 
                     // Merged Target Frame
@@ -187,6 +183,8 @@ namespace BigPlayerDebuffs
                         }
                         node->Flags_2 |= 0x1;
                     }
+
+                    
                 }
 
                 ///////////////////
@@ -209,6 +207,12 @@ namespace BigPlayerDebuffs
                     }
                     this.curSecondRowOffset = newSecondRowOffset;
                 }
+
+                // Setting 0x4 flag on the root element to recalculate the scales down the tree
+                targetInfoStatusUnitBase->UldManager.NodeList[1]->Flags_2 |= 0x4;
+                targetInfoStatusUnitBase->UldManager.NodeList[1]->Flags_2 |= 0x1;
+                targetInfoUnitBase->UldManager.NodeList[2]->Flags_2 |= 0x4;
+                targetInfoUnitBase->UldManager.NodeList[2]->Flags_2 |= 0x1;
             }
 
         }
@@ -249,6 +253,9 @@ namespace BigPlayerDebuffs
                 targetInfoUnitBase->UldManager.NodeList[i]->Y = 41;
                 targetInfoUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
             }
+
+            targetInfoStatusUnitBase->UldManager.NodeList[1]->Flags_2 |= 0x4;
+            targetInfoUnitBase->UldManager.NodeList[2]->Flags_2 |= 0x4;
         }
 
 
