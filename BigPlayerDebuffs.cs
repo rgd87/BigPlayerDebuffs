@@ -1,24 +1,35 @@
 ﻿using System;
 using System.Linq;
-using Dalamud.Game.Internal;
 using Dalamud.Plugin;
 using System.Reflection;
 using FFXIVClientStructs.Attributes;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 
+using Dalamud.Hooking;
+using Dalamud.Logging;
+using Dalamud.Game;
+using Dalamud.Game.Gui;
+using Dalamud.Game.ClientState;
+using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.Command;
+using Dalamud.Game.ClientState.Objects;
+using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Data;
 
 namespace BigPlayerDebuffs
 {
     internal unsafe class Common {
         public static DalamudPluginInterface PluginInterface { get; private set; }
+        public static GameGui GameGui { get; private set; }
 
-        public Common(DalamudPluginInterface pluginInterface)
+        public Common(DalamudPluginInterface pluginInterface, GameGui gameGui)
         {
             PluginInterface = pluginInterface;
+            GameGui = gameGui;
         }
         public static AtkUnitBase* GetUnitBase(string name, int index = 1)
         {
-            return (AtkUnitBase*)PluginInterface.Framework.Gui.GetUiObjectByName(name, index);
+            return (AtkUnitBase*)GameGui.GetAddonByName(name, index);
         }
 
         public static T* GetUnitBase<T>(string name = null, int index = 1) where T : unmanaged
@@ -34,13 +45,23 @@ namespace BigPlayerDebuffs
 
             if (string.IsNullOrEmpty(name)) return null;
 
-            return (T*)PluginInterface.Framework.Gui.GetUiObjectByName(name, index);
+            return (T*)GameGui.GetAddonByName(name, index);
         }
     }
 
     public class BigPlayerDebuffs: IDalamudPlugin {
-        public string Name => "Big Player Debuffs";
-        public DalamudPluginInterface PluginInterface { get; private set; }
+        public string Name => "BigPlayerDebuffs";
+
+        public static DalamudPluginInterface PluginInterface { get; private set; }
+        public static ClientState ClientState { get; private set; }
+        public static TargetManager TargetManager{ get; private set; }
+        public static Framework Framework { get; private set; }
+        public static GameGui GameGui { get; private set; }
+        public static CommandManager CommandManager { get; private set; }
+        public static ObjectTable Objects { get; private set; }
+        public static SigScanner SigScanner { get; private set; }
+        public static DataManager DataManager { get; private set; }
+
         public BigPlayerDebuffsConfig PluginConfig { get; private set; }
 
         private bool drawConfigWindow;
@@ -49,6 +70,59 @@ namespace BigPlayerDebuffs
 
         int curSecondRowOffset = 41;
         int curDebuffs = -1;
+
+        public BigPlayerDebuffs(
+                DalamudPluginInterface pluginInterface,
+                ClientState clientState,
+                CommandManager commandManager,
+                Framework framework,
+                ObjectTable objects,
+                GameGui gameGui,
+                SigScanner sigScanner,
+                DataManager dataManager,
+                TargetManager targets
+            )
+        {
+            PluginInterface = pluginInterface;
+            ClientState = clientState;
+            Framework = framework;
+            CommandManager = commandManager;
+            Objects = objects;
+            SigScanner = sigScanner;
+            DataManager = dataManager;
+            TargetManager = targets;
+
+            if (!FFXIVClientStructs.Resolver.Initialized) FFXIVClientStructs.Resolver.Initialize();
+
+            this.common = new Common(pluginInterface, gameGui);
+
+            this.PluginConfig = (BigPlayerDebuffsConfig)pluginInterface.GetPluginConfig() ?? new BigPlayerDebuffsConfig();
+            this.PluginConfig.Init(this, pluginInterface);
+
+            // Upgrade if config is too old
+            //try
+            //{
+            //    Config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+            //}
+            //catch (Exception e)
+            //{
+            //    PluginLog.LogError("Error loading config", e);
+            //    Config = new Configuration();
+            //    Config.Save();
+            //}
+            //if (Config.Version == 0)
+            //{
+            //    PluginLog.Log("Old config version found");
+            //    Config = new Configuration();
+            //    Config.Save();
+            //}
+
+            PluginInterface.UiBuilder.Draw += this.BuildUI;
+            PluginInterface.UiBuilder.OpenConfigUi += this.OnOpenConfig;
+            Framework.Update += FrameworkOnUpdate;
+            SetupCommands();
+
+        }
 
         public void InvalidateState()
         {
@@ -59,34 +133,38 @@ namespace BigPlayerDebuffs
 
 
         public void Dispose() {
-            PluginInterface.UiBuilder.OnBuildUi -= this.BuildUI;
+            PluginInterface.UiBuilder.Draw -= this.BuildUI;
+            PluginInterface.UiBuilder.OpenConfigUi -= OnOpenConfig;
 
-            PluginInterface.Framework.OnUpdateEvent -= FrameworkOnUpdate;
+            Framework.Update -= FrameworkOnUpdate;
 
             ResetTargetStatus();
+
+            PluginInterface = null;
+            //Config = null;
 
             RemoveCommands();
         }
 
-        public void Initialize(DalamudPluginInterface pluginInterface) {
-            this.PluginInterface = pluginInterface;
-            this.PluginConfig = (BigPlayerDebuffsConfig) pluginInterface.GetPluginConfig() ?? new BigPlayerDebuffsConfig();
-            this.PluginConfig.Init(this, pluginInterface);
+        //public void Initialize(DalamudPluginInterface pluginInterface) {
+        //    this.PluginInterface = pluginInterface;
+        //    this.PluginConfig = (BigPlayerDebuffsConfig) pluginInterface.GetPluginConfig() ?? new BigPlayerDebuffsConfig();
+        //    this.PluginConfig.Init(this, pluginInterface);
 
-            this.common = new Common(pluginInterface);
-
-
-            PluginInterface.UiBuilder.OnOpenConfigUi += (sender, args) => {
-                this.drawConfigWindow = true;
-            };
-
-            PluginInterface.UiBuilder.OnBuildUi += this.BuildUI;
+        //    this.common = new Common(pluginInterface);
 
 
-            PluginInterface.Framework.OnUpdateEvent += FrameworkOnUpdate;
+        //    PluginInterface.UiBuilder.OnOpenConfigUi += (sender, args) => {
+        //        this.drawConfigWindow = true;
+        //    };
 
-            SetupCommands();
-        }
+        //    PluginInterface.UiBuilder.OnBuildUi += this.BuildUI;
+
+
+        //    PluginInterface.Framework.OnUpdateEvent += FrameworkOnUpdate;
+
+        //    SetupCommands();
+        //}
 
         private void FrameworkOnUpdate(Framework framework)
         {
@@ -106,17 +184,19 @@ namespace BigPlayerDebuffs
 
         private unsafe void UpdateTargetStatus()
         {
-            var target = this.PluginInterface.ClientState.Targets.CurrentTarget;
-            if (target != null)
+            
+            //var targetGameObject = TargetManager.Target;
+            if (TargetManager.Target is BattleChara target)
             {
+                 
                 var playerAuras = 0;
 
                 //PluginLog.Log($"StatusEffects.Length {target.StatusEffects.Length}"); // Always 30
 
-                var localPlayerId = this.PluginInterface.ClientState.LocalPlayer?.ActorId;
+                var localPlayerId = ClientState.LocalPlayer?.ObjectId;
                 for (var i = 0; i < 30; i++)
                 {
-                    if (target.StatusEffects[i].OwnerId == localPlayerId) playerAuras++;
+                    if (target.StatusList[i].SourceID == localPlayerId) playerAuras++;
                 }
 
                 //PluginLog.Log($"Player Auras {playerAuras}");
@@ -263,10 +343,15 @@ namespace BigPlayerDebuffs
 
 
         public void SetupCommands() {
-            PluginInterface.CommandManager.AddHandler("/bigplayerdebuffs", new Dalamud.Game.Command.CommandInfo(OnConfigCommandHandler) {
+            CommandManager.AddHandler("/bigplayerdebuffs", new Dalamud.Game.Command.CommandInfo(OnConfigCommandHandler) {
                 HelpMessage = $"Open config window for {this.Name}",
                 ShowInHelp = true
             });
+        }
+
+        private void OnOpenConfig()
+        {
+            drawConfigWindow = true;
         }
 
         public void OnConfigCommandHandler(string command, string args) {
@@ -274,7 +359,7 @@ namespace BigPlayerDebuffs
         }
 
         public void RemoveCommands() {
-            PluginInterface.CommandManager.RemoveHandler("/bigplayerdebuffs");
+            CommandManager.RemoveHandler("/bigplayerdebuffs");
         }
 
         private void BuildUI() {
