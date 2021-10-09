@@ -53,6 +53,8 @@ namespace BigPlayerDebuffs
 
             modified |= ImGui.SliderFloat("Own Buff/Debuff Scale", ref bScale, 1.0F, 2.0F);
 
+            ImGui.End();
+
 
             if (modified)
             {
