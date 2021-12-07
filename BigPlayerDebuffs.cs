@@ -199,9 +199,11 @@ namespace BigPlayerDebuffs
                     if (target.StatusList[i].SourceID == localPlayerId) playerAuras++;
                 }
 
-                //PluginLog.Log($"Player Auras {playerAuras}");
+                //PluginLog.Log($"Player Auras old:{this.curDebuffs} new: {playerAuras}");
 
                 if (this.curDebuffs != playerAuras) {
+
+                    //PluginLog.Log($"Updating...");
 
                     var playerScale = this.PluginConfig.bScale;
 

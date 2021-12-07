@@ -6,5 +6,5 @@
   "AssemblyVersion": "Version",
   "RepoUrl": "https://github.com/rgd87/BigPlayerDebuffs",
   "ApplicableVersion": "any",
-  "DalamudApiLevel": 4
+  "DalamudApiLevel": 5
 }
