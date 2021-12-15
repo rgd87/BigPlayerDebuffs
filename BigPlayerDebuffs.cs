@@ -276,13 +276,13 @@ namespace BigPlayerDebuffs
                     if (newSecondRowOffset != this.curSecondRowOffset)
                     {
                         // Split Target Frame Second Row
-                        for (var i = 17; i >= 2; i--)
+                        for (var i = 16; i >= 2; i--)
                         {
                             targetInfoStatusUnitBase->UldManager.NodeList[i]->Y = newSecondRowOffset;
                             targetInfoStatusUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
                         }
                         // Merged Target Frame Second Row
-                        for (var i = 18; i >= 3; i--)
+                        for (var i = 17; i >= 3; i--)
                         {
                             targetInfoUnitBase->UldManager.NodeList[i]->Y = newSecondRowOffset;
                             targetInfoUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
