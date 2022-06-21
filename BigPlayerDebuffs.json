@@ -10,5 +10,6 @@
   "ImageUrls": [
     "https://raw.githubusercontent.com/rgd87/BigPlayerDebuffs/master/images/image1.png"
   ],
+  "Changelog": "* v1.1.0.5\n * Futureproofing for the next Dalamud update\n",
   "DalamudApiLevel": 6
 }

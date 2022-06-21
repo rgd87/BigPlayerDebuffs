@@ -92,8 +92,6 @@ namespace BigPlayerDebuffs
             DataManager = dataManager;
             TargetManager = targets;
 
-            if (!FFXIVClientStructs.Resolver.Initialized) FFXIVClientStructs.Resolver.Initialize();
-
             this.common = new Common(pluginInterface, gameGui);
 
             this.PluginConfig = (BigPlayerDebuffsConfig)pluginInterface.GetPluginConfig() ?? new BigPlayerDebuffsConfig();

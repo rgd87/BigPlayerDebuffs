@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Authors></Authors>
     <Company></Company>
-    <Version>1.1.0.4</Version>
+    <Version>1.1.0.5</Version>
     <Description>Scales up buffs/debuffs applied by you on Target Status frames</Description>
     <Copyright></Copyright>
     <PackageProjectUrl>https://github.com/rgd87/BigPlayerDebuffs</PackageProjectUrl>
