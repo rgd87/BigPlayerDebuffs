@@ -2,6 +2,7 @@
   "Author": "d87",
   "Name": "BigPlayerDebuffs",
   "Description": "Scales up buffs/debuffs applied by you on Target Status frames",
+  "Punchline": "Larger personal debuffs",
   "InternalName": "BigPlayerDebuffs",
   "AssemblyVersion": "Version",
   "RepoUrl": "https://github.com/rgd87/BigPlayerDebuffs",

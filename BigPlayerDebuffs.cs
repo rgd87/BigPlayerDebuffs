@@ -194,7 +194,7 @@ namespace BigPlayerDebuffs
                 var localPlayerId = ClientState.LocalPlayer?.ObjectId;
                 for (var i = 0; i < 30; i++)
                 {
-                    if (target.StatusList[i].SourceID == localPlayerId) playerAuras++;
+                    if (target.StatusList[i].SourceId == localPlayerId) playerAuras++;
                 }
 
                 //PluginLog.Log($"Player Auras old:{this.curDebuffs} new: {playerAuras}");
