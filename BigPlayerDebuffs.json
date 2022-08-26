@@ -11,6 +11,5 @@
   "ImageUrls": [
     "https://raw.githubusercontent.com/rgd87/BigPlayerDebuffs/master/images/image1.png"
   ],
-  "Changelog": "* v1.1.0.7\n * Bump to API 7\n",
-  "DalamudApiLevel": 7
+  "Changelog": "* v1.1.0.7\n * Bump to API 7\n"
 }
