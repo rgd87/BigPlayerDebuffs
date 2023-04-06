@@ -1,20 +1,18 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Plugin;
 using System.Reflection;
 using FFXIVClientStructs.Attributes;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-
-using Dalamud.Hooking;
-using Dalamud.Logging;
 using Dalamud.Game;
 using Dalamud.Game.Gui;
 using Dalamud.Game.ClientState;
-using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Command;
 using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Data;
+using Dalamud.Logging;
 
 namespace BigPlayerDebuffs
 {
@@ -69,7 +67,8 @@ namespace BigPlayerDebuffs
         internal Common common;
 
         int curSecondRowOffset = 41;
-        int curDebuffs = -1;
+        int targetDebuffs = -1;
+        private int fTargetDebuffs = -1;
 
         public BigPlayerDebuffs(
                 DalamudPluginInterface pluginInterface,
@@ -124,7 +123,7 @@ namespace BigPlayerDebuffs
 
         public void InvalidateState()
         {
-            curDebuffs = -1;
+            targetDebuffs = -1;
             curSecondRowOffset = -1;
             UpdateTargetStatus();
         }
@@ -144,26 +143,6 @@ namespace BigPlayerDebuffs
             RemoveCommands();
         }
 
-        //public void Initialize(DalamudPluginInterface pluginInterface) {
-        //    this.PluginInterface = pluginInterface;
-        //    this.PluginConfig = (BigPlayerDebuffsConfig) pluginInterface.GetPluginConfig() ?? new BigPlayerDebuffsConfig();
-        //    this.PluginConfig.Init(this, pluginInterface);
-
-        //    this.common = new Common(pluginInterface);
-
-
-        //    PluginInterface.UiBuilder.OnOpenConfigUi += (sender, args) => {
-        //        this.drawConfigWindow = true;
-        //    };
-
-        //    PluginInterface.UiBuilder.OnBuildUi += this.BuildUI;
-
-
-        //    PluginInterface.Framework.OnUpdateEvent += FrameworkOnUpdate;
-
-        //    SetupCommands();
-        //}
-
         private void FrameworkOnUpdate(Framework framework)
         {
 #if DEBUG
@@ -180,164 +159,192 @@ namespace BigPlayerDebuffs
 #endif
         }
 
-        private unsafe void UpdateTargetStatus()
-        {
-            
-            //var targetGameObject = TargetManager.Target;
-            if (TargetManager.Target is BattleChara target)
-            {
-                 
-                var playerAuras = 0;
+        private enum ChildEnumMode {
+            NextNext,
+            ChildNext,
+            PrevPrev,
+            ChildPrev,
+            ChildPrevPrev
+        };
 
-                //PluginLog.Log($"StatusEffects.Length {target.StatusEffects.Length}"); // Always 30
-
-                var localPlayerId = ClientState.LocalPlayer?.ObjectId;
-                for (var i = 0; i < 30; i++)
-                {
-                    if (target.StatusList[i].SourceId == localPlayerId) playerAuras++;
-                }
-
-                //PluginLog.Log($"Player Auras old:{this.curDebuffs} new: {playerAuras}");
-
-                if (this.curDebuffs != playerAuras) {
-
-                    //PluginLog.Log($"Updating...");
-
-                    var playerScale = this.PluginConfig.bScale;
-
-                    var targetInfoUnitBase = Common.GetUnitBase("_TargetInfo", 1);
-                    if (targetInfoUnitBase == null) return;
-                    if (targetInfoUnitBase->UldManager.NodeList == null || targetInfoUnitBase->UldManager.NodeListCount < 53) return;
-
-                    var targetInfoStatusUnitBase = Common.GetUnitBase("_TargetInfoBuffDebuff", 1);
-                    if (targetInfoStatusUnitBase == null) return;
-                    if (targetInfoStatusUnitBase->UldManager.NodeList == null || targetInfoStatusUnitBase->UldManager.NodeListCount < 32) return;
-
-                    this.curDebuffs = playerAuras;
-
-                    var adjustOffsetY = -(int)(41 * (playerScale-1.0f)/4.5);
-
-                    var xIncrement = (int)((playerScale - 1.0f) * 25);
-
-                    // Split Target Frame
-
-                    var growingOffsetX = 0;
-                    for (var i = 0; i < 15; i++)
-                    {
-                        var node = targetInfoStatusUnitBase->UldManager.NodeList[31 - i];
-                        node->X = i * 25 + growingOffsetX;
-
-                        if (i < playerAuras)
-                        {
-                            node->ScaleX = playerScale;
-                            node->ScaleY = playerScale;
-                            node->Y = adjustOffsetY;
-                            growingOffsetX += xIncrement;
-                        }
-                        else
-                        {
-                            node->ScaleX = 1.0f;
-                            node->ScaleY = 1.0f;
-                            node->Y = 0;
-                        }
-                        node->Flags_2 |= 0x1; // 0x1 flag i'm guessing recalculates only for this node
-                    }
-
-                    // Merged Target Frame
-
-                    growingOffsetX = 0;
-                    for (var i = 0; i < 15; i++)
-                    {
-                        var node = targetInfoUnitBase->UldManager.NodeList[32 - i];
-                        node->X = i * 25 + growingOffsetX;
-
-                        if (i < playerAuras)
-                        {
-                            node->ScaleX = playerScale;
-                            node->ScaleY = playerScale;
-                            node->Y = adjustOffsetY;
-                            growingOffsetX += xIncrement;
-                        }
-                        else
-                        {
-                            node->ScaleX = 1.0f;
-                            node->ScaleY = 1.0f;
-                            node->Y = 0;
-                        }
-                        node->Flags_2 |= 0x1;
-                    }
-
-                    ///////////////////
-
-                    var newSecondRowOffset = (playerAuras > 0) ? (int)(playerScale*41) : 41;
-
-                    if (newSecondRowOffset != this.curSecondRowOffset)
-                    {
-                        // Split Target Frame Second Row
-                        for (var i = 16; i >= 2; i--)
-                        {
-                            targetInfoStatusUnitBase->UldManager.NodeList[i]->Y = newSecondRowOffset;
-                            targetInfoStatusUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
-                        }
-                        // Merged Target Frame Second Row
-                        for (var i = 17; i >= 3; i--)
-                        {
-                            targetInfoUnitBase->UldManager.NodeList[i]->Y = newSecondRowOffset;
-                            targetInfoUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
-                        }
-                        this.curSecondRowOffset = newSecondRowOffset;
-                    }
-
-                    // Setting 0x4 flag on the root element to recalculate the scales down the tree
-                    targetInfoStatusUnitBase->UldManager.NodeList[1]->Flags_2 |= 0x4;
-                    targetInfoStatusUnitBase->UldManager.NodeList[1]->Flags_2 |= 0x1;
-                    targetInfoUnitBase->UldManager.NodeList[2]->Flags_2 |= 0x4;
-                    targetInfoUnitBase->UldManager.NodeList[2]->Flags_2 |= 0x1;
-
-                }
-            }
-
+        private enum ChildEnumOrder {
+            ZeroForward,
+            MaxBackward
         }
 
-        private unsafe void ResetTargetStatus()
+        private unsafe struct UiElement {
+            public readonly AtkUnitBase* Element;
+            public readonly string Name;
+            public readonly int StatusListIndex;
+            public readonly ChildEnumMode EnumMode;
+            public readonly ChildEnumOrder EnumOrder;
+
+            public UiElement(string name, int statusListIndex) {
+                Name = name;
+                Element = Common.GetUnitBase(name);
+                StatusListIndex = statusListIndex;
+                EnumMode = Name == "_TargetInfoBuffDebuff" ? ChildEnumMode.ChildPrev : ChildEnumMode.NextNext;
+                EnumOrder = Name == "_TargetInfoBuffDebuff" ? ChildEnumOrder.MaxBackward : ChildEnumOrder.ZeroForward;
+            }
+
+            public bool Valid() => Element is not null
+                                   && Element->UldManager.NodeList is not null
+                                   && Element->UldManager.NodeList[StatusListIndex] is not null;
+
+            public AtkResNode* StatusList => Element->UldManager.NodeList[StatusListIndex];
+
+            public AtkResNode*[] Children {
+                get {
+                    if (!Valid())
+                        return new AtkResNode*[0];
+                    var children = new AtkResNode*[StatusList->ChildCount];
+                    
+                    // Separate debuff does it a bit differently :\
+                    var child = EnumMode switch {
+                        ChildEnumMode.NextNext => StatusList->NextSiblingNode,
+                        ChildEnumMode.ChildNext => StatusList->ChildNode,
+                        ChildEnumMode.PrevPrev => StatusList->PrevSiblingNode,
+                        ChildEnumMode.ChildPrev => StatusList->ChildNode,
+                        ChildEnumMode.ChildPrevPrev => StatusList->ChildNode->PrevSiblingNode,
+                        _ => throw new ArgumentOutOfRangeException(nameof(ChildEnumMode), $"Unexpected enum value: {EnumMode}")
+                    };
+
+                    // No children? No problem
+                    if (child is null || (int) child == 0)
+                        return new AtkResNode*[0];
+                    // Reverse for MaxBackward
+                    var i = EnumOrder == ChildEnumOrder.MaxBackward ? children.Length - 1 : 0;
+                    
+                    // soundness (index out of range)
+                    // will error if the game lies to us about ChildCount
+                    while (child is not null) {
+                        var newIndex = EnumOrder == ChildEnumOrder.MaxBackward ? i-- : i++;
+                        children[newIndex] = child;
+
+                        child = EnumMode switch {
+                            ChildEnumMode.NextNext => child->NextSiblingNode,
+                            ChildEnumMode.ChildNext => child->NextSiblingNode,
+                            ChildEnumMode.PrevPrev => child->PrevSiblingNode,
+                            ChildEnumMode.ChildPrev => child->PrevSiblingNode,
+                            ChildEnumMode.ChildPrevPrev => child->PrevSiblingNode,
+                            _ => throw new ArgumentOutOfRangeException(nameof(ChildEnumMode), $"Unexpected enum value: {EnumMode}")
+                        };
+                    }
+                    
+                    // Note: The re-sorting we do here lets us avoid annoyances when iterating later
+                    // because we no longer have to care what nuisances affect accessing the target
+                    return children;
+                }
+            }
+        }
+
+        private readonly Dictionary<int, string> targetElements = new(){
+            {1, "_TargetInfoBuffDebuff"},
+            {2, "_TargetInfo"},
+            {3, "_FocusTargetInfo"}
+        };
+
+        private unsafe void UpdateTargetStatus() {
+
+            var localPlayerId = ClientState.LocalPlayer?.ObjectId;
+            var playerAuras = 0;
+            if (TargetManager.Target is BattleChara target) {
+                playerAuras = target.StatusList.Count(s => s.SourceId == localPlayerId);
+            }
+
+            var focusAuras = 0;
+            if (TargetManager.FocusTarget is BattleChara focusTarget) {
+                focusAuras = focusTarget.StatusList.Count(s => s.SourceId == localPlayerId);
+            }
+            
+            //PluginLog.Log($"StatusEffects.Length {target.StatusEffects.Length}"); // Always 30
+            //PluginLog.Log($"Player Auras old:{this.curDebuffs} new: {playerAuras}");
+            // Hasn't changed since last tick
+            if (targetDebuffs == playerAuras && fTargetDebuffs == focusAuras) {
+                return;
+            }
+
+            //PluginLog.Log($"Updating...");
+            foreach (var element in targetElements) {
+                var playerScale = PluginConfig.bScale;
+                var targetAuras = playerAuras;
+                switch (element.Value) {
+                    case "_TargetInfoBuffDebuff" when PluginConfig.includeMainTarget:
+                        break;
+                    case "_TargetInfo" when PluginConfig.includeMainTarget:
+                        break;
+                    case "_FocusTargetInfo" when PluginConfig.includeFocusTarget:
+                        playerScale = PluginConfig.fScale;
+                        targetAuras = focusAuras;
+                        break;
+                    default:
+                        continue;
+                }
+                var uiElement = new UiElement(element.Value, element.Key);
+                var children = uiElement.Children;
+                // Poor man's IEnumerable, but that's life with unsafe
+                for (var childIndex = 0; childIndex < children.Length; childIndex++) {
+                    var child = children[childIndex];
+                    var scalar =  childIndex < targetAuras ? playerScale : 1.0f;
+                    child->ScaleX = scalar;
+                    child->ScaleY = scalar;
+                    child->X = childIndex % 15 * child->Width;
+                    child->Y = childIndex < 15 ? 0 : child->Height;
+                    if (childIndex < targetAuras) {
+                        child->ScaleX = playerScale;
+                        child->ScaleY = playerScale;
+                    }
+                    switch (childIndex) {
+                        // For simplicity's sake, we're going to assume no player has >14 debuffs out at once
+                        case < 15 when targetAuras > 0:
+                            // Add the difference between an unscaled and a scaled icon
+                            child->X += (child->Width * playerScale - child->Width) * MathF.Min(childIndex, targetAuras);
+                            // We bump the Y offset a bit for our changed icons
+                            if (childIndex < targetAuras) {
+                                child->Y = (child->Height * playerScale - child->Height) / -(child->Height / 2 );
+                            }
+                            else {
+                                child->Y = 0;
+                            }
+                            break;
+                        case > 14 when targetAuras > 0:
+                            child->Y = child->Height * playerScale;
+                            break;
+                        default:
+                            child->Y = childIndex > 14 ? child->Height * playerScale : 0;
+                            break;
+                    }
+                    // Set update flag
+                    child->Flags_2 |= 0x1;
+                    // Onto the next one
+                    child = child->NextSiblingNode;
+                }
+                uiElement.StatusList->Flags_2 |= 0x4;
+                uiElement.StatusList->Flags_2 |= 0x1;
+            }
+        }
+
+        public unsafe void ResetTargetStatus()
         {
-            var targetInfoUnitBase = Common.GetUnitBase("_TargetInfo", 1);
-            if (targetInfoUnitBase == null) return;
-            if (targetInfoUnitBase->UldManager.NodeList == null || targetInfoUnitBase->UldManager.NodeListCount < 53) return;
+            foreach (var element in targetElements) {
+                var uiElement = new UiElement(element.Value, element.Key);
+                var children = uiElement.Children;
+                // Poor man's IEnumerable, but that's life with unsafe
+                for(var childIndex = 0; childIndex < children.Length; childIndex++) {
+                    var child = children[childIndex];
+                    child->ScaleX = 1.0f;
+                    child->ScaleY = 1.0f;
+                    child->X = childIndex % 15 * child->Width;
+                    child->Y = childIndex < 15 ? 0 : child->Height;
+                    // Set update flag
+                    child->Flags_2 |= 0x1;
+                    // Onto the next one
+                    child = child->NextSiblingNode;
+                }
 
-            var targetInfoStatusUnitBase = Common.GetUnitBase("_TargetInfoBuffDebuff", 1);
-            if (targetInfoStatusUnitBase == null) return;
-            if (targetInfoStatusUnitBase->UldManager.NodeList == null || targetInfoStatusUnitBase->UldManager.NodeListCount < 32) return;
-
-            for (var i = 0; i < 15; i++)
-            {
-                var node = targetInfoStatusUnitBase->UldManager.NodeList[31 - i];
-                node->ScaleX = 1.0f;
-                node->ScaleY = 1.0f;
-                node->X = i * 25;
-                node->Y = 0;
-                node->Flags_2 |= 0x1;
-
-                node = targetInfoUnitBase->UldManager.NodeList[32 - i];
-                node->ScaleX = 1.0f;
-                node->ScaleY = 1.0f;
-                node->X = i * 25;
-                node->Y = 0;
-                node->Flags_2 |= 0x1;
+                uiElement.StatusList->Flags_2 |= 0x4;
+                uiElement.StatusList->Flags_2 |= 0x1;
             }
-            for (var i = 17; i >= 2; i--)
-            {
-                targetInfoStatusUnitBase->UldManager.NodeList[i]->Y = 41;
-                targetInfoStatusUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
-            }
-            for (var i = 18; i >= 3; i--)
-            {
-                targetInfoUnitBase->UldManager.NodeList[i]->Y = 41;
-                targetInfoUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
-            }
-
-            targetInfoStatusUnitBase->UldManager.NodeList[1]->Flags_2 |= 0x4;
-            targetInfoUnitBase->UldManager.NodeList[2]->Flags_2 |= 0x4;
         }
 
 
