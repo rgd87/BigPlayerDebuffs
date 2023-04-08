@@ -29,7 +29,6 @@ public class BigPlayerDebuffsConfig : IPluginConfiguration {
 
     private void Save() {
         pluginInterface.SavePluginConfig(this);
-        plugin.InvalidateState();
     }
 
     public bool DrawConfigUi() {

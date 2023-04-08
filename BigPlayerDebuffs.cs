@@ -1,13 +1,9 @@
 ﻿using System;
-using System.Linq;
 using Dalamud.Plugin;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Dalamud.Game;
 using Dalamud.Game.Gui;
-using Dalamud.Game.ClientState;
 using Dalamud.Game.Command;
-using Dalamud.Game.ClientState.Objects;
-using Dalamud.Game.ClientState.Objects.Types;
 
 namespace BigPlayerDebuffs; 
 
@@ -108,8 +104,6 @@ public class BigPlayerDebuffs : IDalamudPlugin {
     public string Name => "BigPlayerDebuffs";
 
     private readonly DalamudPluginInterface pluginInterface;
-    private readonly ClientState client;
-    private readonly TargetManager targets;
     private readonly Framework framework;
     private readonly CommandManager commands;
 
@@ -119,22 +113,15 @@ public class BigPlayerDebuffs : IDalamudPlugin {
 
     private bool drawConfigWindow;
 
-    private int targetDebuffs = -1;
-    private int fTargetDebuffs = -1;
-
     public BigPlayerDebuffs(
         DalamudPluginInterface dalamudPluginInterface,
-        ClientState clientState,
         CommandManager commandManager,
         Framework dalamudFramework,
-        GameGui gameGui,
-        TargetManager targetManager
+        GameGui gameGui
     ) {
         pluginInterface = dalamudPluginInterface;
-        client = clientState;
         commands = commandManager;
         framework = dalamudFramework;
-        targets = targetManager;
 
         pluginConfig = pluginInterface.GetPluginConfig() as BigPlayerDebuffsConfig ?? new BigPlayerDebuffsConfig();
         pluginConfig.Init(this, pluginInterface);
@@ -151,11 +138,6 @@ public class BigPlayerDebuffs : IDalamudPlugin {
         pluginInterface.UiBuilder.OpenConfigUi += OnOpenConfig;
         framework.Update += FrameworkOnUpdate;
         SetupCommands();
-    }
-
-    public void InvalidateState() {
-        targetDebuffs = -1;
-        UpdateTargetStatus();
     }
 
     public void Dispose() {
@@ -183,39 +165,15 @@ public class BigPlayerDebuffs : IDalamudPlugin {
 
 
     private unsafe void UpdateTargetStatus() {
-        var localPlayerId = client.LocalPlayer?.ObjectId;
-        var playerAuras = 0;
         // The actual width and height of the tokens don't matter, they're always 25 apart.
         // e.g. the aspected benefit icon is 24px wide, but the second slot is still at [25, 41]
         const int slotWidth = 25;
         const int slotHeight = 41;
-        if (targets.Target is BattleChara target) {
-            playerAuras = target.StatusList.Count(s => s.SourceId == localPlayerId);
-            var x = (FFXIVClientStructs.FFXIV.Client.Game.Character.BattleChara*) target.Address;
-            x->StatusManager.GetStatusIndex(0x0, target.ObjectId);
-        }
-
-        var focusAuras = 0;
-        if (targets.FocusTarget is BattleChara focusTarget) {
-            focusAuras = focusTarget.StatusList.Count(s => s.SourceId == localPlayerId);
-        }
-
-        //PluginLog.Log($"StatusEffects.Length {target.StatusEffects.Length}"); // Always 30
-        //PluginLog.Log($"Player Auras old:{this.curDebuffs} new: {playerAuras}");
-        // Hasn't changed since last tick
-        if (targetDebuffs == playerAuras && fTargetDebuffs == focusAuras) {
-            return;
-        }
-
-        // Update our counters
-        targetDebuffs = playerAuras;
-        fTargetDebuffs = focusAuras;
 
 
         //PluginLog.Log($"Updating...");
         foreach (var element in uiElements) {
             element.Refresh();
-            var targetAuras = playerAuras;
             var playerScale = pluginConfig.bScale;
             switch (element.Name) {
                 case "_TargetInfoBuffDebuff" when pluginConfig.IncludeMainTarget:
@@ -223,7 +181,6 @@ public class BigPlayerDebuffs : IDalamudPlugin {
                 case "_TargetInfo" when pluginConfig.IncludeMainTarget:
                     break;
                 case "_FocusTargetInfo" when pluginConfig.IncludeFocusTarget:
-                    targetAuras = focusAuras;
                     playerScale = pluginConfig.FocusScale;
                     break;
                 default:
@@ -243,23 +200,21 @@ public class BigPlayerDebuffs : IDalamudPlugin {
                 var scalar = isOwnStatus ? playerScale : 1.0f;
                 child->ScaleX = scalar;
                 child->ScaleY = scalar;
-                // Add in our running shift value
-                child->X = childIndex % 15 * slotWidth + xOffset;
+                child->X = childIndex % 15 * slotWidth;
                 child->Y = row == 0 ? 0 : slotHeight;
                 
-                // We actually have work to do?
-                if (targetAuras > 0) {
-                    // If we're on the second row, factor in if the first row has shifted
-                    if (row > 0 && xOffset > 0f) {
-                        child->Y *= playerScale;
-                    }
-                    // We bump the Y offset a bit for our changed icons
-                    if (isOwnStatus) {
-                        // Add the difference between an unscaled and a scaled icon to our running total
-                        xOffset += slotWidth * playerScale - slotWidth;
-                        // Y pos gets shifted slightly to match the top part of the unscaled icons
-                        child->Y = (slotHeight * playerScale - slotHeight) / -(slotHeight / 2);
-                    }
+                // Add in our running shift value
+                child->X += xOffset;
+                // If we're on the second row, factor in if the first row has shifted
+                if (row > 0 && xOffset > 0f) {
+                    child->Y *= playerScale;
+                }
+                // We bump the Y offset a bit for our changed icons
+                if (isOwnStatus) {
+                    // Add the difference between an unscaled and a scaled icon to our running total
+                    xOffset += slotWidth * playerScale - slotWidth;
+                    // Y pos gets shifted slightly to match the top part of the unscaled icons
+                    child->Y = (slotHeight * playerScale - slotHeight) / -(slotHeight / 2);
                 }
 
                 // Set update flag
