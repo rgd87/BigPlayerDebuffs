@@ -4,6 +4,9 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using Dalamud.Game;
 using Dalamud.Game.Gui;
 using Dalamud.Game.Command;
+#if DEBUG
+using Dalamud.Logging;
+#endif
 
 namespace BigPlayerDebuffs; 
 
@@ -20,8 +23,15 @@ internal enum ChildEnumOrder {
     MaxBackward
 }
 
+internal enum ElementType {
+    Status,
+    FocusStatus,
+    TargetStatus
+}
+
 internal unsafe class UiElement {
     public readonly string Name;
+    public readonly ElementType Type;
 
     private AtkUnitBase* element;
     private readonly int childListPos;
@@ -33,8 +43,9 @@ internal unsafe class UiElement {
         element = (AtkUnitBase*) gui.GetAddonByName(Name);
     }
 
-    public UiElement(string name, int childListIndex, ChildEnumMode mode, ChildEnumOrder order, GameGui gameGui) {
+    public UiElement(string name, ElementType type, int childListIndex, ChildEnumMode mode, ChildEnumOrder order, GameGui gameGui) {
         Name = name;
+        Type = type;
         childListPos = childListIndex;
         enumMode = mode;
         enumOrder = order;
@@ -44,7 +55,8 @@ internal unsafe class UiElement {
 
     private bool Valid() => element is not null
                             && element->UldManager.NodeList is not null
-                            && element->UldManager.NodeList[childListPos] is not null;
+                            && element->UldManager.NodeList[childListPos] is not null
+                            && element->IsVisible;
 
     public AtkResNode* StatusList => element->UldManager.NodeList[childListPos];
 
@@ -53,8 +65,20 @@ internal unsafe class UiElement {
             if (!Valid()) {
                 return new AtkResNode*[0];
             }
-
+            
             var children = new AtkResNode*[StatusList->ChildCount];
+            // TODO: Find a better method for determining child count that applies to both situations
+            if (children.Length == 0) {
+                // If the nodelist doesn't have a child count, we assume the res node we were given as our starting point
+                // is the last node before we begin seeing IconText Component Nodes
+                var totalCount = element->UldManager.NodeListCount - childListPos - 1;
+                if (totalCount < 0) {
+                    return new AtkResNode*[0];
+                }
+                else {
+                    children = new AtkResNode*[totalCount];
+                }
+            }
 
             // Separate debuff does it a bit differently :\
             var child = enumMode switch {
@@ -79,7 +103,16 @@ internal unsafe class UiElement {
             // will error if the game lies to us about ChildCount
             while (child is not null) {
                 var newIndex = enumOrder == ChildEnumOrder.MaxBackward ? i-- : i++;
+                #if DEBUG
+                try {
+                    children[newIndex] = child;
+                }
+                catch (IndexOutOfRangeException e) {
+                    PluginLog.Warning($"Index {i} outside of array with length {children.Length-1} for {Name}");
+                }
+                #else
                 children[newIndex] = child;
+                #endif
 
                 child = enumMode switch {
                     ChildEnumMode.NextNext => child->NextSiblingNode,
@@ -128,9 +161,14 @@ public class BigPlayerDebuffs : IDalamudPlugin {
 
         // We have to supply .gui since unsafe classes are static
         uiElements = new[] {
-            new UiElement("_TargetInfoBuffDebuff", 1, ChildEnumMode.ChildPrev, ChildEnumOrder.MaxBackward, gameGui),
-            new UiElement("_TargetInfo", 2, ChildEnumMode.NextNext, ChildEnumOrder.ZeroForward, gameGui),
-            new UiElement("_FocusTargetInfo", 3, ChildEnumMode.NextNext, ChildEnumOrder.ZeroForward, gameGui)
+            new UiElement("_TargetInfoBuffDebuff", ElementType.TargetStatus, 1, ChildEnumMode.ChildPrev, ChildEnumOrder.MaxBackward, gameGui),
+            new UiElement("_TargetInfo", ElementType.TargetStatus, 2, ChildEnumMode.NextNext, ChildEnumOrder.ZeroForward, gameGui),
+            new UiElement("_FocusTargetInfo", ElementType.FocusStatus, 3, ChildEnumMode.NextNext, ChildEnumOrder.ZeroForward, gameGui),
+            new UiElement("_Status", ElementType.Status, 0, ChildEnumMode.ChildPrev, ChildEnumOrder.MaxBackward, gameGui),
+            new UiElement("_StatusCustom0", ElementType.Status, 4, ChildEnumMode.PrevPrev, ChildEnumOrder.MaxBackward, gameGui),
+            new UiElement("_StatusCustom1", ElementType.Status, 4, ChildEnumMode.PrevPrev, ChildEnumOrder.MaxBackward, gameGui),
+            new UiElement("_StatusCustom2", ElementType.Status, 4, ChildEnumMode.PrevPrev, ChildEnumOrder.MaxBackward, gameGui),
+            new UiElement("_StatusCustom3", ElementType.Status, 3, ChildEnumMode.PrevPrev, ChildEnumOrder.MaxBackward, gameGui)
         };
 
         // Wire up
@@ -175,13 +213,14 @@ public class BigPlayerDebuffs : IDalamudPlugin {
         foreach (var element in uiElements) {
             element.Refresh();
             var playerScale = pluginConfig.bScale;
-            switch (element.Name) {
-                case "_TargetInfoBuffDebuff" when pluginConfig.IncludeMainTarget:
+            switch (element.Type) {
+                case ElementType.TargetStatus when pluginConfig.IncludeMainTarget:
                     break;
-                case "_TargetInfo" when pluginConfig.IncludeMainTarget:
-                    break;
-                case "_FocusTargetInfo" when pluginConfig.IncludeFocusTarget:
+                case ElementType.FocusStatus when pluginConfig.IncludeFocusTarget:
                     playerScale = pluginConfig.FocusScale;
+                    break;
+                case ElementType.Status when pluginConfig.IncludeBuffBar:
+                    playerScale = pluginConfig.BarScale;
                     break;
                 default:
                     continue;

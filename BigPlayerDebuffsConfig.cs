@@ -19,8 +19,10 @@ public class BigPlayerDebuffsConfig : IPluginConfiguration {
     // ReSharper disable once InconsistentNaming
     public float bScale = 1.4f;
     public float FocusScale = 1.25f;
+    public float BarScale = 1.25f;
     public bool IncludeMainTarget = true;
     public bool IncludeFocusTarget = true;
+    public bool IncludeBuffBar = false;
 
     public void Init(BigPlayerDebuffs ownPlugin, DalamudPluginInterface dalamudPluginInterface) {
         plugin = ownPlugin;
@@ -41,30 +43,51 @@ public class BigPlayerDebuffsConfig : IPluginConfiguration {
         ImGui.SetNextWindowSize(new Vector2(550, 120) * scale, ImGuiCond.FirstUseEver);
         ImGui.SetNextWindowSizeConstraints(new Vector2(550, 110), new Vector2(1100, 650) * scale);
         ImGui.Begin($"{plugin.Name} Configuration", ref drawConfig, ImGuiWindowFlags.NoCollapse);
-        // Target UI
+        
+        #region Target
+        
         ImGui.BeginGroup();
         modified |= ImGui.Checkbox("##Enable scaling in Target UI", ref IncludeMainTarget);
         if (ImGui.IsItemHovered()) {
             ImGui.SetTooltip("Enable scaling in target UI");
         }
-
         ImGui.SameLine();
         ImGui.BeginDisabled(!IncludeMainTarget);
         modified |= ImGui.SliderFloat("Scale in Target UI", ref bScale, 1.0F, 2.0F, "%.2f");
         ImGui.EndDisabled();
         ImGui.EndGroup();
-        // Focus target
+        
+        #endregion
+        #region FocusTarget
+        
         ImGui.BeginGroup();
         modified |= ImGui.Checkbox("##Enable scaling in Focus Target UI", ref IncludeFocusTarget);
         if (ImGui.IsItemHovered()) {
             ImGui.SetTooltip("Enable scaling in focus target UI");
         }
-
         ImGui.SameLine();
         ImGui.BeginDisabled(!IncludeFocusTarget);
         modified |= ImGui.SliderFloat("Scale in Focus Target UI", ref FocusScale, 1.0F, 2.0F, "%.2f");
         ImGui.EndDisabled();
         ImGui.EndGroup();
+        
+        #endregion
+        #region BuffBar
+        
+        ImGui.BeginGroup();
+        modified |= ImGui.Checkbox("##Enable scaling in own buff/debuff display", ref IncludeBuffBar);
+        if (ImGui.IsItemHovered()) {
+            ImGui.SetTooltip("Enable scaling in own buff/debuff display");
+        }
+        ImGui.SameLine();
+        ImGui.BeginDisabled(!IncludeBuffBar);
+        modified |= ImGui.SliderFloat("Scale in self buff bar", ref BarScale, 1.0F, 2.0F, "%.2f");
+        ImGui.EndDisabled();
+        ImGui.EndGroup();
+        
+        #endregion
+
+        // Hint and end
         ImGui.Text("Hint: Ctrl+Click a slider to input a number directly");
         ImGui.End();
 
