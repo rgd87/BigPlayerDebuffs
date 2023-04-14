@@ -2,66 +2,101 @@
 using Dalamud.Plugin;
 using ImGuiNET;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Numerics;
-using Dalamud.Game.Text;
 
-namespace BigPlayerDebuffs
-{
-    public class RouletteConfig {
-        public bool Enabled;
-        public bool Tank;
-        public bool Healer;
-        public bool DPS;
+namespace BigPlayerDebuffs; 
+
+public class BigPlayerDebuffsConfig : IPluginConfiguration {
+    [NonSerialized] private DalamudPluginInterface pluginInterface = null!;
+
+    [NonSerialized] private BigPlayerDebuffs plugin = null!;
+
+    //[NonSerialized] private bool showWebhookWindow;
+
+    public int Version { get; set; }
+
+    // What does the 'b' mean? Should be named something like TargetScale but config compatibility /shrug
+    // ReSharper disable once InconsistentNaming
+    public float bScale = 1.4f;
+    public float FocusScale = 1.25f;
+    public float BarScale = 1.25f;
+    public bool IncludeMainTarget = true;
+    public bool IncludeFocusTarget = true;
+    public bool IncludeBuffBar = false;
+
+    public void Init(BigPlayerDebuffs ownPlugin, DalamudPluginInterface dalamudPluginInterface) {
+        plugin = ownPlugin;
+        pluginInterface = dalamudPluginInterface;
     }
 
-    public class BigPlayerDebuffsConfig : IPluginConfiguration {
-        [NonSerialized]
-        private DalamudPluginInterface pluginInterface;
+    private void Save() {
+        pluginInterface.SavePluginConfig(this);
+    }
 
-        [NonSerialized]
-        private BigPlayerDebuffs plugin;
+    public bool DrawConfigUi() {
+        var drawConfig = true;
 
-        //[NonSerialized] private bool showWebhookWindow;
+        var scale = ImGui.GetIO().FontGlobalScale;
 
-        public int Version { get; set; }
+        var modified = false;
 
-        public float bScale = 1.4f;
+        ImGui.SetNextWindowSize(new Vector2(550, 120) * scale, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSizeConstraints(new Vector2(550, 110), new Vector2(1100, 650) * scale);
+        ImGui.Begin($"{plugin.Name} Configuration", ref drawConfig, ImGuiWindowFlags.NoCollapse);
+        
+        #region Target
+        
+        ImGui.BeginGroup();
+        modified |= ImGui.Checkbox("##Enable scaling in Target UI", ref IncludeMainTarget);
+        if (ImGui.IsItemHovered()) {
+            ImGui.SetTooltip("Enable scaling in target UI");
+        }
+        ImGui.SameLine();
+        ImGui.BeginDisabled(!IncludeMainTarget);
+        modified |= ImGui.SliderFloat("Scale in Target UI", ref bScale, 1.0F, 2.0F, "%.2f");
+        ImGui.EndDisabled();
+        ImGui.EndGroup();
+        
+        #endregion
+        #region FocusTarget
+        
+        ImGui.BeginGroup();
+        modified |= ImGui.Checkbox("##Enable scaling in Focus Target UI", ref IncludeFocusTarget);
+        if (ImGui.IsItemHovered()) {
+            ImGui.SetTooltip("Enable scaling in focus target UI");
+        }
+        ImGui.SameLine();
+        ImGui.BeginDisabled(!IncludeFocusTarget);
+        modified |= ImGui.SliderFloat("Scale in Focus Target UI", ref FocusScale, 1.0F, 2.0F, "%.2f");
+        ImGui.EndDisabled();
+        ImGui.EndGroup();
+        
+        #endregion
+        #region BuffBar
+        
+        ImGui.BeginGroup();
+        modified |= ImGui.Checkbox("##Enable scaling in own buff/debuff display", ref IncludeBuffBar);
+        if (ImGui.IsItemHovered()) {
+            ImGui.SetTooltip("Enable scaling in own buff/debuff display");
+        }
+        ImGui.SameLine();
+        ImGui.BeginDisabled(!IncludeBuffBar);
+        modified |= ImGui.SliderFloat("Scale in self buff bar", ref BarScale, 1.0F, 2.0F, "%.2f");
+        ImGui.EndDisabled();
+        ImGui.EndGroup();
+        
+        #endregion
+
+        // Hint and end
+        ImGui.Text("Hint: Ctrl+Click a slider to input a number directly");
+        ImGui.End();
 
 
-        public void Init(BigPlayerDebuffs plugin, DalamudPluginInterface pluginInterface) {
-            this.plugin = plugin;
-            this.pluginInterface = pluginInterface;
+        if (modified) {
+            plugin.ResetTargetStatus();
+            Save();
         }
 
-        public void Save() {
-            pluginInterface.SavePluginConfig(this);
-            plugin.InvalidateState();
-        }
-
-        public bool DrawConfigUI() {
-            var drawConfig = true;
-
-            var scale = ImGui.GetIO().FontGlobalScale;
-
-            var modified = false;
-
-            ImGui.SetNextWindowSize(new Vector2(500 * scale, 350), ImGuiCond.FirstUseEver);
-            ImGui.SetNextWindowSizeConstraints(new Vector2(500 * scale, 350), new Vector2(560 * scale, 650));
-            ImGui.Begin($"{plugin.Name} Config", ref drawConfig, ImGuiWindowFlags.NoCollapse);
-
-            modified |= ImGui.SliderFloat("Own Buff/Debuff Scale", ref bScale, 1.0F, 2.0F);
-
-            ImGui.End();
-
-
-            if (modified)
-            {
-                Save();
-            }
-
-            return drawConfig;
-        }
+        return drawConfig;
     }
 }
