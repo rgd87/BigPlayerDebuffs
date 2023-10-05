@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using System.Reflection;
 using FFXIVClientStructs.Attributes;
 using FFXIVClientStructs.FFXIV.Component.GUI;
@@ -16,13 +17,15 @@ using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Data;
 
+
+
 namespace BigPlayerDebuffs
 {
     internal unsafe class Common {
         public static DalamudPluginInterface PluginInterface { get; private set; }
-        public static GameGui GameGui { get; private set; }
+        public static IGameGui GameGui { get; private set; }
 
-        public Common(DalamudPluginInterface pluginInterface, GameGui gameGui)
+        public Common(DalamudPluginInterface pluginInterface, IGameGui gameGui)
         {
             PluginInterface = pluginInterface;
             GameGui = gameGui;
@@ -53,14 +56,14 @@ namespace BigPlayerDebuffs
         public string Name => "BigPlayerDebuffs";
 
         public static DalamudPluginInterface PluginInterface { get; private set; }
-        public static ClientState ClientState { get; private set; }
-        public static TargetManager TargetManager{ get; private set; }
-        public static Framework Framework { get; private set; }
-        public static GameGui GameGui { get; private set; }
-        public static CommandManager CommandManager { get; private set; }
-        public static ObjectTable Objects { get; private set; }
-        public static SigScanner SigScanner { get; private set; }
-        public static DataManager DataManager { get; private set; }
+        public static IClientState ClientState { get; private set; }
+        public static ITargetManager TargetManager{ get; private set; }
+        public static IFramework Framework { get; private set; }
+        public static IGameGui GameGui { get; private set; }
+        public static ICommandManager CommandManager { get; private set; }
+        public static IObjectTable Objects { get; private set; }
+        public static ISigScanner SigScanner { get; private set; }
+        public static IDataManager DataManager { get; private set; }
 
         public BigPlayerDebuffsConfig PluginConfig { get; private set; }
 
@@ -73,14 +76,14 @@ namespace BigPlayerDebuffs
 
         public BigPlayerDebuffs(
                 DalamudPluginInterface pluginInterface,
-                ClientState clientState,
-                CommandManager commandManager,
-                Framework framework,
-                ObjectTable objects,
-                GameGui gameGui,
-                SigScanner sigScanner,
-                DataManager dataManager,
-                TargetManager targets
+                IClientState clientState,
+                ICommandManager commandManager,
+                IFramework framework,
+                IObjectTable objects,
+                IGameGui gameGui,
+                ISigScanner sigScanner,
+                IDataManager dataManager,
+                ITargetManager targets
             )
         {
             PluginInterface = pluginInterface;
@@ -164,7 +167,7 @@ namespace BigPlayerDebuffs
         //    SetupCommands();
         //}
 
-        private void FrameworkOnUpdate(Framework framework)
+        private void FrameworkOnUpdate(IFramework framework)
         {
 #if DEBUG
             try
@@ -240,7 +243,7 @@ namespace BigPlayerDebuffs
                             node->ScaleY = 1.0f;
                             node->Y = 0;
                         }
-                        node->Flags_2 |= 0x1; // 0x1 flag i'm guessing recalculates only for this node
+                        node->DrawFlags |= 0x1; // 0x1 flag i'm guessing recalculates only for this node
                     }
 
                     // Merged Target Frame
@@ -264,7 +267,7 @@ namespace BigPlayerDebuffs
                             node->ScaleY = 1.0f;
                             node->Y = 0;
                         }
-                        node->Flags_2 |= 0x1;
+                        node->DrawFlags |= 0x1;
                     }
 
                     ///////////////////
@@ -277,22 +280,22 @@ namespace BigPlayerDebuffs
                         for (var i = 16; i >= 2; i--)
                         {
                             targetInfoStatusUnitBase->UldManager.NodeList[i]->Y = newSecondRowOffset;
-                            targetInfoStatusUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
+                            targetInfoStatusUnitBase->UldManager.NodeList[i]->DrawFlags |= 0x1;
                         }
                         // Merged Target Frame Second Row
                         for (var i = 17; i >= 3; i--)
                         {
                             targetInfoUnitBase->UldManager.NodeList[i]->Y = newSecondRowOffset;
-                            targetInfoUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
+                            targetInfoUnitBase->UldManager.NodeList[i]->DrawFlags |= 0x1;
                         }
                         this.curSecondRowOffset = newSecondRowOffset;
                     }
 
                     // Setting 0x4 flag on the root element to recalculate the scales down the tree
-                    targetInfoStatusUnitBase->UldManager.NodeList[1]->Flags_2 |= 0x4;
-                    targetInfoStatusUnitBase->UldManager.NodeList[1]->Flags_2 |= 0x1;
-                    targetInfoUnitBase->UldManager.NodeList[2]->Flags_2 |= 0x4;
-                    targetInfoUnitBase->UldManager.NodeList[2]->Flags_2 |= 0x1;
+                    targetInfoStatusUnitBase->UldManager.NodeList[1]->DrawFlags |= 0x4;
+                    targetInfoStatusUnitBase->UldManager.NodeList[1]->DrawFlags |= 0x1;
+                    targetInfoUnitBase->UldManager.NodeList[2]->DrawFlags |= 0x4;
+                    targetInfoUnitBase->UldManager.NodeList[2]->DrawFlags |= 0x1;
 
                 }
             }
@@ -316,28 +319,28 @@ namespace BigPlayerDebuffs
                 node->ScaleY = 1.0f;
                 node->X = i * 25;
                 node->Y = 0;
-                node->Flags_2 |= 0x1;
+                node->DrawFlags |= 0x1;
 
                 node = targetInfoUnitBase->UldManager.NodeList[32 - i];
                 node->ScaleX = 1.0f;
                 node->ScaleY = 1.0f;
                 node->X = i * 25;
                 node->Y = 0;
-                node->Flags_2 |= 0x1;
+                node->DrawFlags |= 0x1;
             }
             for (var i = 17; i >= 2; i--)
             {
                 targetInfoStatusUnitBase->UldManager.NodeList[i]->Y = 41;
-                targetInfoStatusUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
+                targetInfoStatusUnitBase->UldManager.NodeList[i]->DrawFlags |= 0x1;
             }
             for (var i = 18; i >= 3; i--)
             {
                 targetInfoUnitBase->UldManager.NodeList[i]->Y = 41;
-                targetInfoUnitBase->UldManager.NodeList[i]->Flags_2 |= 0x1;
+                targetInfoUnitBase->UldManager.NodeList[i]->DrawFlags |= 0x1;
             }
 
-            targetInfoStatusUnitBase->UldManager.NodeList[1]->Flags_2 |= 0x4;
-            targetInfoUnitBase->UldManager.NodeList[2]->Flags_2 |= 0x4;
+            targetInfoStatusUnitBase->UldManager.NodeList[1]->DrawFlags |= 0x4;
+            targetInfoUnitBase->UldManager.NodeList[2]->DrawFlags |= 0x4;
         }
 
 
