@@ -51,7 +51,7 @@ namespace BigPlayerDebuffs
             ImGui.SetNextWindowSizeConstraints(new Vector2(500 * scale, 350), new Vector2(560 * scale, 650));
             ImGui.Begin($"{plugin.Name} Config", ref drawConfig, ImGuiWindowFlags.NoCollapse);
 
-            modified |= ImGui.SliderFloat("Own Buff/Debuff Scale", ref bScale, 1.0F, 2.0F);
+            modified |= ImGui.SliderFloat("Own Buff/Debuff Scale", ref bScale, 1.0F, 4.0F);
 
             ImGui.End();
 
