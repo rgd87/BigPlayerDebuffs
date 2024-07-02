@@ -5,6 +5,7 @@
   "Punchline": "Larger personal debuffs",
   "InternalName": "BigPlayerDebuffs",
   "AssemblyVersion": "Version",
+  "Tags": [ "Buff", "Debuff", "Scale", "Interface" ],
   "RepoUrl": "https://github.com/rgd87/BigPlayerDebuffs",
   "ApplicableVersion": "any",
   "IconUrl": "https://raw.githubusercontent.com/rgd87/BigPlayerDebuffs/master/images/icon.png",

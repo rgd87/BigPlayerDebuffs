@@ -17,15 +17,13 @@ using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Data;
 
-
-
 namespace BigPlayerDebuffs
 {
     internal unsafe class Common {
-        public static DalamudPluginInterface PluginInterface { get; private set; }
+        public static IDalamudPluginInterface PluginInterface { get; private set; }
         public static IGameGui GameGui { get; private set; }
 
-        public Common(DalamudPluginInterface pluginInterface, IGameGui gameGui)
+        public Common(IDalamudPluginInterface pluginInterface, IGameGui gameGui)
         {
             PluginInterface = pluginInterface;
             GameGui = gameGui;
@@ -55,7 +53,7 @@ namespace BigPlayerDebuffs
     public class BigPlayerDebuffs: IDalamudPlugin {
         public string Name => "BigPlayerDebuffs";
 
-        public static DalamudPluginInterface PluginInterface { get; private set; }
+        public static IDalamudPluginInterface PluginInterface { get; private set; }
         public static IClientState ClientState { get; private set; }
         public static ITargetManager TargetManager{ get; private set; }
         public static IFramework Framework { get; private set; }
@@ -75,7 +73,7 @@ namespace BigPlayerDebuffs
         int curDebuffs = -1;
 
         public BigPlayerDebuffs(
-                DalamudPluginInterface pluginInterface,
+                IDalamudPluginInterface pluginInterface,
                 IClientState clientState,
                 ICommandManager commandManager,
                 IFramework framework,
@@ -96,6 +94,7 @@ namespace BigPlayerDebuffs
             TargetManager = targets;
 
             this.common = new Common(pluginInterface, gameGui);
+
 
             this.PluginConfig = (BigPlayerDebuffsConfig)pluginInterface.GetPluginConfig() ?? new BigPlayerDebuffsConfig();
             this.PluginConfig.Init(this, pluginInterface);
@@ -176,7 +175,7 @@ namespace BigPlayerDebuffs
             }
             catch (Exception ex)
             {
-                PluginLog.Error(ex.ToString());
+                IPluginLog.Error(ex.ToString());
             }
 #else
             UpdateTargetStatus();
@@ -187,14 +186,14 @@ namespace BigPlayerDebuffs
         {
             
             //var targetGameObject = TargetManager.Target;
-            if (TargetManager.Target is BattleChara target)
+            if (TargetManager.Target is IBattleChara target)
             {
                  
                 var playerAuras = 0;
 
                 //PluginLog.Log($"StatusEffects.Length {target.StatusEffects.Length}"); // Always 30
 
-                var localPlayerId = ClientState.LocalPlayer?.ObjectId;
+                var localPlayerId = ClientState.LocalPlayer?.GameObjectId;
                 for (var i = 0; i < 30; i++)
                 {
                     if (target.StatusList[i].SourceId == localPlayerId) playerAuras++;

@@ -18,7 +18,7 @@ namespace BigPlayerDebuffs
 
     public class BigPlayerDebuffsConfig : IPluginConfiguration {
         [NonSerialized]
-        private DalamudPluginInterface pluginInterface;
+        private IDalamudPluginInterface pluginInterface;
 
         [NonSerialized]
         private BigPlayerDebuffs plugin;
@@ -30,7 +30,7 @@ namespace BigPlayerDebuffs
         public float bScale = 1.4f;
 
 
-        public void Init(BigPlayerDebuffs plugin, DalamudPluginInterface pluginInterface) {
+        public void Init(BigPlayerDebuffs plugin, IDalamudPluginInterface pluginInterface) {
             this.plugin = plugin;
             this.pluginInterface = pluginInterface;
         }
