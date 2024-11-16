@@ -37,19 +37,15 @@ namespace BigPlayerDebuffs
         {
             if (string.IsNullOrEmpty(name))
             {
-                var attr = (Addon)typeof(T).GetCustomAttribute(typeof(Addon));
-                if (attr != null)
-                {
-                    name = attr.AddonIdentifiers.FirstOrDefault();
-                }
+                name = typeof(T).Name;
             }
-
+            
             if (string.IsNullOrEmpty(name)) return null;
-
+            
             return (T*)GameGui.GetAddonByName(name, index);
         }
     }
-
+    
     public class BigPlayerDebuffs: IDalamudPlugin {
         public string Name => "BigPlayerDebuffs";
 
