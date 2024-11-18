@@ -32,12 +32,12 @@ namespace BigPlayerDebuffs
         {
             return (AtkUnitBase*)GameGui.GetAddonByName(name, index);
         }
-
+        /*
         public static T* GetUnitBase<T>(string name = null, int index = 1) where T : unmanaged
         {
             if (string.IsNullOrEmpty(name))
             {
-                var attr = (Addon)typeof(T).GetCustomAttribute(typeof(Addon));
+                var attr = (AddonAttribute)typeof(T).GetCustomAttribute(typeof(AddonAttribute));
                 if (attr != null)
                 {
                     name = attr.AddonIdentifiers.FirstOrDefault();
@@ -47,7 +47,7 @@ namespace BigPlayerDebuffs
             if (string.IsNullOrEmpty(name)) return null;
 
             return (T*)GameGui.GetAddonByName(name, index);
-        }
+        }*/
     }
 
     public class BigPlayerDebuffs: IDalamudPlugin {
@@ -119,6 +119,8 @@ namespace BigPlayerDebuffs
 
             PluginInterface.UiBuilder.Draw += this.BuildUI;
             PluginInterface.UiBuilder.OpenConfigUi += this.OnOpenConfig;
+            // Adds another button that is doing the same but for the main ui of the plugin
+            PluginInterface.UiBuilder.OpenMainUi += this.OnOpenConfig;
             Framework.Update += FrameworkOnUpdate;
             SetupCommands();
 
