@@ -62,6 +62,7 @@ namespace BigPlayerDebuffs
         public static IObjectTable Objects { get; private set; }
         public static ISigScanner SigScanner { get; private set; }
         public static IDataManager DataManager { get; private set; }
+        public static IPluginLog PluginLog { get; private set; }
 
         public BigPlayerDebuffsConfig PluginConfig { get; private set; }
 
@@ -177,7 +178,7 @@ namespace BigPlayerDebuffs
             }
             catch (Exception ex)
             {
-                IPluginLog.Error(ex.ToString());
+                PluginLog.Error(ex.ToString());
             }
 #else
             UpdateTargetStatus();
