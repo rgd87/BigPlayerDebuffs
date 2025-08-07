@@ -30,7 +30,7 @@ namespace BigPlayerDebuffs
         }
         public static AtkUnitBase* GetUnitBase(string name, int index = 1)
         {
-            return (AtkUnitBase*)GameGui.GetAddonByName(name, index);
+            return (AtkUnitBase*)GameGui.GetAddonByName(name, index).Address;
         }
         /*
         public static T* GetUnitBase<T>(string name = null, int index = 1) where T : unmanaged
