@@ -10,8 +10,6 @@ using Dalamud.Hooking;
 using Dalamud.Logging;
 using Dalamud.Game;
 using Dalamud.Game.Gui;
-using Dalamud.Game.ClientState;
-using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Command;
 using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -54,7 +52,7 @@ namespace BigPlayerDebuffs
         public string Name => "BigPlayerDebuffs";
 
         public static IDalamudPluginInterface PluginInterface { get; private set; }
-        public static IClientState ClientState { get; private set; }
+        public static IPlayerState PlayerState { get; private set; }
         public static ITargetManager TargetManager{ get; private set; }
         public static IFramework Framework { get; private set; }
         public static IGameGui GameGui { get; private set; }
@@ -75,7 +73,7 @@ namespace BigPlayerDebuffs
 
         public BigPlayerDebuffs(
                 IDalamudPluginInterface pluginInterface,
-                IClientState clientState,
+                IPlayerState playerState,
                 ICommandManager commandManager,
                 IFramework framework,
                 IObjectTable objects,
@@ -86,7 +84,7 @@ namespace BigPlayerDebuffs
             )
         {
             PluginInterface = pluginInterface;
-            ClientState = clientState;
+            PlayerState = playerState;
             Framework = framework;
             CommandManager = commandManager;
             Objects = objects;
@@ -196,7 +194,7 @@ namespace BigPlayerDebuffs
 
                 //PluginLog.Log($"StatusEffects.Length {target.StatusEffects.Length}"); // Always 30
 
-                var localPlayerId = ClientState.LocalPlayer?.GameObjectId;
+                var localPlayerId = PlayerState.EntityId;
                 for (var i = 0; i < 30; i++)
                 {
                     if (target.StatusList[i].SourceId == localPlayerId) playerAuras++;
